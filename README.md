@@ -51,6 +51,16 @@ flutter build linux
 
 Binaries are under `build/` for each platform.
 
+### App icon
+
+The launcher icon (folders + git motif on blue) lives in `assets/icon/app_icon.png`. Regenerate platform icons after changing it:
+
+```bash
+dart run flutter_launcher_icons
+```
+
+Then rebuild the app so Windows/macOS pick up the new `.ico` / `.icns` assets.
+
 ## Tabs
 
 | Tab | Purpose |

@@ -320,83 +320,28 @@ class _MultiTerminalPanel extends StatelessWidget {
                 subtitle: '$openCount open',
                 icon: Icons.tab_rounded,
               ),
-              SizedBox(
-                height: 36,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.sm,
-                    0,
-                    AppSpacing.sm,
-                    AppSpacing.sm,
-                  ),
-                  itemCount: sessions.length,
-                  itemBuilder: (context, index) {
-                    final session = sessions[index];
-                    final selected = index == safeIndex;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: AppSpacing.xs),
-                      child: Material(
-                        color: selected
-                            ? scheme.primary
-                            : const Color(0xFF3A3A3C),
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusSm),
-                        child: InkWell(
-                          borderRadius:
-                              BorderRadius.circular(AppSpacing.radiusSm),
-                          onTap: () => onSelect(index),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.terminal_rounded,
-                                  size: 14,
-                                  color: selected
-                                      ? scheme.onPrimary
-                                      : Colors.white70,
-                                ),
-                                const SizedBox(width: 6),
-                                ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 160,
-                                  ),
-                                  child: Text(
-                                    session.displayName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: selected
-                                          ? scheme.onPrimary
-                                          : Colors.white70,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                InkWell(
-                                  onTap: () => onClose(index),
-                                  child: Icon(
-                                    Icons.close_rounded,
-                                    size: 16,
-                                    color: selected
-                                        ? scheme.onPrimary
-                                        : Colors.white54,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.sm,
+                  0,
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    for (var index = 0; index < sessions.length; index++)
+                      Padding(
+                        padding: const EdgeInsets.only(right: AppSpacing.xs),
+                        child: _SessionTabChip(
+                          label: sessions[index].displayName,
+                          selected: index == safeIndex,
+                          scheme: scheme,
+                          onSelect: () => onSelect(index),
+                          onClose: () => onClose(index),
                         ),
                       ),
-                    );
-                  },
+                  ],
                 ),
               ),
             ],
@@ -412,6 +357,72 @@ class _MultiTerminalPanel extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SessionTabChip extends StatelessWidget {
+  const _SessionTabChip({
+    required this.label,
+    required this.selected,
+    required this.scheme,
+    required this.onSelect,
+    required this.onClose,
+  });
+
+  final String label;
+  final bool selected;
+  final ColorScheme scheme;
+  final VoidCallback onSelect;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = selected ? scheme.onPrimary : Colors.white70;
+    final fgMuted = selected ? scheme.onPrimary : Colors.white54;
+
+    return Material(
+      color: selected ? scheme.primary : const Color(0xFF3A3A3C),
+      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        onTap: onSelect,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 8,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.terminal_rounded, size: 14, color: fg),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: fg,
+                  fontSize: 13,
+                  height: 1.25,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 6),
+              InkWell(
+                onTap: onClose,
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: fgMuted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
