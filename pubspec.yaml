@@ -37,6 +37,9 @@ dependencies:
   path: ^1.9.1
   ghostty_vte_flutter: ^0.1.3
   portable_pty: ^0.0.5
+  # Used directly by the Windows ConPTY bridge to drive the raw portable_pty
+  # FFI bindings from a dedicated reader isolate.
+  ffi: ^2.1.0
   google_fonts: ^6.2.1
 
 dev_dependencies:

@@ -155,8 +155,12 @@ GhosttyTerminalShellLaunch _launchForDirectory(String cwd) {
 
 String _powershellCdCommand(String path) {
   final escaped = path.replaceAll("'", "''");
-  return "Set-Location -LiteralPath '$escaped'\r\n"
-      r'$OutputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::new()' '\r\n';
+  // Force UTF-8 for output and input, then move to the project directory, in a
+  // single line so the shell echoes one setup command and then settles at the
+  // project-directory prompt (e.g. `PS C:\project>`).
+  const encoding = r'$OutputEncoding = [Console]::OutputEncoding = '
+      r'[Console]::InputEncoding = [Text.UTF8Encoding]::new()';
+  return "$encoding; Set-Location -LiteralPath '$escaped'\r\n";
 }
 
 String _shellQuote(String path) {
