@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../models/repo_entry.dart';
 import '../services/config_store.dart';
 import '../services/run_history_store.dart';
+import '../theme/app_spacing.dart';
+import '../widgets/common/app_snackbar.dart';
 import 'batch_runner_tab.dart';
 import 'report_screen.dart';
 import 'settings_screen.dart';
@@ -63,9 +65,9 @@ class _MainShellScreenState extends State<MainShellScreen>
     switch (result) {
       case AddRepoResult.added:
         _refresh();
-        _showSnack('Repository added');
+        showAppSnackBar(context, message: 'Repository added', isSuccess: true);
       case AddRepoResult.duplicate:
-        _showSnack('This folder is already enlisted');
+        showAppSnackBar(context, message: 'This folder is already enlisted');
       case AddRepoResult.notGitRepo:
         await _showDialog(
           title: 'Not a git repository',
@@ -84,8 +86,9 @@ class _MainShellScreenState extends State<MainShellScreen>
 
     try {
       await widget.store.relinkRepo(repo.id, path);
+      if (!mounted) return;
       _refresh();
-      _showSnack('Repository re-linked');
+      showAppSnackBar(context, message: 'Repository re-linked', isSuccess: true);
     } on StateError catch (e) {
       if (!mounted) return;
       if (e.message == 'not_git_repo') {
@@ -94,15 +97,9 @@ class _MainShellScreenState extends State<MainShellScreen>
           message: 'The selected folder is not a git repository.',
         );
       } else if (e.message == 'duplicate') {
-        _showSnack('That folder is already enlisted');
+        showAppSnackBar(context, message: 'That folder is already enlisted');
       }
     }
-  }
-
-  void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
   }
 
   Future<void> _showDialog({
@@ -115,6 +112,10 @@ class _MainShellScreenState extends State<MainShellScreen>
         title: Text(title),
         content: Text(message),
         actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('OK'),
@@ -148,38 +149,105 @@ class _MainShellScreenState extends State<MainShellScreen>
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      final scheme = Theme.of(context).colorScheme;
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 36,
+                height: 36,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: scheme.primary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Loading workspace…',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
+    final scheme = Theme.of(context).colorScheme;
+    final repoCount = widget.store.config.repos.length;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Git Helper'),
+        titleSpacing: AppSpacing.md,
+        title: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              ),
+              child: Icon(
+                Icons.folder_special_outlined,
+                color: scheme.primary,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Git Helper'),
+                  Text(
+                    repoCount == 0
+                        ? 'No repositories enlisted'
+                        : '$repoCount ${repoCount == 1 ? 'repository' : 'repositories'}',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          padding: const EdgeInsets.only(left: AppSpacing.sm),
+          labelPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           tabs: const [
             Tab(
-              icon: Icon(Icons.grid_view_outlined),
+              height: 48,
+              icon: Icon(Icons.grid_view_rounded, size: 20),
               text: 'Batch runner',
             ),
             Tab(
-              icon: Icon(Icons.terminal_outlined),
+              height: 48,
+              icon: Icon(Icons.terminal_rounded, size: 20),
               text: 'Terminals',
             ),
           ],
         ),
         actions: [
-          TextButton.icon(
-            onPressed: _openReport,
-            icon: const Icon(Icons.assessment_outlined),
-            label: const Text('Report'),
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: OutlinedButton.icon(
+              onPressed: _openReport,
+              icon: const Icon(Icons.assessment_outlined, size: 18),
+              label: const Text('Report'),
+            ),
           ),
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
             onPressed: _openSettings,
           ),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
       body: TabBarView(

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 
 import '../services/project_terminal_session.dart';
+import '../theme/app_theme.dart';
+import 'common/panel_header.dart';
 import 'terminal_font_metrics.dart';
 
 /// Full-screen Ghostty terminal with aligned monospace grid (no separate input bar).
@@ -11,11 +13,13 @@ class EmbeddedTerminalPane extends StatefulWidget {
     required this.session,
     required this.controller,
     required this.focusNode,
+    this.showHeader = true,
   });
 
   final ProjectTerminalSession session;
   final GhosttyTerminalController controller;
   final FocusNode focusNode;
+  final bool showHeader;
 
   @override
   State<EmbeddedTerminalPane> createState() => _EmbeddedTerminalPaneState();
@@ -33,11 +37,17 @@ class _EmbeddedTerminalPaneState extends State<EmbeddedTerminalPane> {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF0C0C0C),
+      color: AppColors.terminalBackground,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _TerminalHeaderBar(session: widget.session),
+          if (widget.showHeader)
+            PanelHeader(
+              invert: true,
+              icon: Icons.terminal_rounded,
+              title: widget.session.displayName,
+              subtitle: widget.session.shellLabel,
+            ),
           if (widget.session.hasError)
             Container(
               width: double.infinity,
@@ -51,7 +61,8 @@ class _EmbeddedTerminalPaneState extends State<EmbeddedTerminalPane> {
               ),
             ),
           Expanded(
-            child: FutureBuilder<TerminalFontMetrics>(
+            child: ClipRect(
+              child: FutureBuilder<TerminalFontMetrics>(
               future: _metricsFuture,
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
@@ -59,7 +70,10 @@ class _EmbeddedTerminalPaneState extends State<EmbeddedTerminalPane> {
                     child: SizedBox(
                       width: 24,
                       height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white38,
+                      ),
                     ),
                   );
                 }
@@ -68,9 +82,9 @@ class _EmbeddedTerminalPaneState extends State<EmbeddedTerminalPane> {
                   controller: widget.controller,
                   focusNode: widget.focusNode,
                   autofocus: true,
-                  backgroundColor: const Color(0xFF0C0C0C),
+                  backgroundColor: AppColors.terminalBackground,
                   foregroundColor: const Color(0xFFCCCCCC),
-                  chromeColor: const Color(0xFF1E1E1E),
+                  chromeColor: AppColors.terminalChrome,
                   fontSize: metrics.fontSize,
                   lineHeight: metrics.lineHeight,
                   fontFamily: metrics.fontFamily,
@@ -87,63 +101,8 @@ class _EmbeddedTerminalPaneState extends State<EmbeddedTerminalPane> {
                 );
               },
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TerminalHeaderBar extends StatelessWidget {
-  const _TerminalHeaderBar({required this.session});
-
-  final ProjectTerminalSession session;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      color: const Color(0xFF2D2D2D),
-      child: Row(
-        children: [
-          Icon(
-            session.isRealShell ? Icons.terminal : Icons.code,
-            size: 16,
-            color: Colors.white70,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  session.displayName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  session.shellLabel,
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
             ),
           ),
-          if (session.isBusy)
-            const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.amber,
-              ),
-            ),
         ],
       ),
     );

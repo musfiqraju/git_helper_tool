@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../models/panel_layout.dart';
+import '../theme/app_spacing.dart';
 
 /// Resizable split between [grid] and [terminal] (vertical or horizontal).
+///
+/// Uses flex so the split never exceeds the parent (fixed [SizedBox] heights
+/// could overflow when min grid + min terminal + handle > viewport).
 class ResizablePanelLayout extends StatefulWidget {
   const ResizablePanelLayout({
     super.key,
@@ -28,7 +32,7 @@ class ResizablePanelLayout extends StatefulWidget {
 }
 
 class _ResizablePanelLayoutState extends State<ResizablePanelLayout> {
-  static const _handleThickness = 8.0;
+  static const _flexScale = 1000;
   late double _terminalRatio;
 
   @override
@@ -48,6 +52,11 @@ class _ResizablePanelLayoutState extends State<ResizablePanelLayout> {
   }
 
   double _clampRatio(double ratio) => ratio.clamp(0.12, 0.88);
+
+  int get _terminalFlex =>
+      (_terminalRatio * _flexScale).round().clamp(1, _flexScale - 1);
+
+  int get _gridFlex => _flexScale - _terminalFlex;
 
   void _applyDrag(double delta, double total) {
     if (total <= 0) return;
@@ -69,52 +78,33 @@ class _ResizablePanelLayoutState extends State<ResizablePanelLayout> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (widget.layout == PanelLayout.stacked) {
-          return _buildStacked(constraints.maxHeight);
+          final total = constraints.maxHeight;
+          return Column(
+            children: [
+              Expanded(flex: _gridFlex, child: widget.grid),
+              _ResizeHandle(
+                axis: Axis.vertical,
+                onDragUpdate: (d) => _applyDrag(d, total),
+                onDragEnd: _commitRatio,
+              ),
+              Expanded(flex: _terminalFlex, child: widget.terminal),
+            ],
+          );
         }
-        return _buildSideBySide(constraints.maxWidth);
+
+        final total = constraints.maxWidth;
+        return Row(
+          children: [
+            Expanded(flex: _gridFlex, child: widget.grid),
+            _ResizeHandle(
+              axis: Axis.horizontal,
+              onDragUpdate: (d) => _applyDrag(d, total),
+              onDragEnd: _commitRatio,
+            ),
+            Expanded(flex: _terminalFlex, child: widget.terminal),
+          ],
+        );
       },
-    );
-  }
-
-  Widget _buildStacked(double totalHeight) {
-    var terminalHeight = totalHeight * _terminalRatio;
-    terminalHeight = terminalHeight.clamp(
-      widget.minTerminalSize,
-      totalHeight - widget.minGridSize - _handleThickness,
-    );
-    final gridHeight = totalHeight - terminalHeight - _handleThickness;
-
-    return Column(
-      children: [
-        SizedBox(height: gridHeight, child: widget.grid),
-        _ResizeHandle(
-          axis: Axis.vertical,
-          onDragUpdate: (d) => _applyDrag(d, totalHeight),
-          onDragEnd: _commitRatio,
-        ),
-        SizedBox(height: terminalHeight, child: widget.terminal),
-      ],
-    );
-  }
-
-  Widget _buildSideBySide(double totalWidth) {
-    var terminalWidth = totalWidth * _terminalRatio;
-    terminalWidth = terminalWidth.clamp(
-      widget.minTerminalSize,
-      totalWidth - widget.minGridSize - _handleThickness,
-    );
-    final gridWidth = totalWidth - terminalWidth - _handleThickness;
-
-    return Row(
-      children: [
-        SizedBox(width: gridWidth, child: widget.grid),
-        _ResizeHandle(
-          axis: Axis.horizontal,
-          onDragUpdate: (d) => _applyDrag(d, totalWidth),
-          onDragEnd: _commitRatio,
-        ),
-        SizedBox(width: terminalWidth, child: widget.terminal),
-      ],
     );
   }
 }
@@ -152,15 +142,15 @@ class _ResizeHandle extends StatelessWidget {
         child: Container(
           width: isVertical ? double.infinity : 8,
           height: isVertical ? 8 : double.infinity,
-          color: theme.dividerColor,
-          child: Center(
-            child: Container(
-              width: isVertical ? 48 : 4,
-              height: isVertical ? 4 : 48,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(2),
-              ),
+          color: theme.colorScheme.surfaceContainerLow,
+          alignment: Alignment.center,
+          child: Container(
+            width: isVertical ? 56 : 4,
+            height: isVertical ? 4 : 56,
+            margin: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.outline.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
           ),
         ),

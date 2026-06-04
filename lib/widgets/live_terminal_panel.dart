@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../models/terminal_line.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_spacing.dart';
+import 'common/empty_state.dart';
+import 'common/panel_header.dart';
 
 class LiveTerminalPanel extends StatefulWidget {
   const LiveTerminalPanel({
@@ -51,61 +55,50 @@ class _LiveTerminalPanelState extends State<LiveTerminalPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Material(
-      elevation: 4,
-      color: const Color(0xFF1E1E1E),
+      color: AppColors.terminalBackground,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.max,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            color: const Color(0xFF2D2D2D),
-            child: Row(
-              children: [
-                Icon(
-                  widget.isRunning ? Icons.terminal : Icons.check_circle_outline,
-                  size: 18,
-                  color: widget.isRunning ? Colors.amber : Colors.greenAccent,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  widget.isRunning ? 'Terminal — running…' : 'Terminal',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: Colors.white70,
-                  ),
-                ),
-                const Spacer(),
-                if (widget.onClear != null && !widget.isRunning)
-                  TextButton(
-                    onPressed: widget.onClear,
-                    child: const Text(
-                      'Clear',
-                      style: TextStyle(color: Colors.white54),
+          PanelHeader(
+            invert: true,
+            icon: Icons.terminal_rounded,
+            title: widget.isRunning ? 'Live output' : 'Output',
+            subtitle: widget.isRunning ? 'Running batch command…' : 'Idle',
+            trailing: widget.onClear != null && !widget.isRunning
+                ? TextButton(
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
-                  ),
-              ],
-            ),
+                    onPressed: widget.onClear,
+                    child: const Text('Clear'),
+                  )
+                : null,
           ),
           Expanded(
-            child: widget.lines.isEmpty
-                ? Center(
-                    child: Text(
-                      'Output appears here when you run commands',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white38,
-                      ),
-                    ),
+            child: ClipRect(
+              child: widget.lines.isEmpty
+                ? const AppEmptyState(
+                    icon: Icons.output_outlined,
+                    title: 'No output yet',
+                    message: 'Run a batch command to stream logs here.',
+                    compact: true,
                   )
-                : ListView.builder(
+                : Scrollbar(
+                    thumbVisibility: widget.lines.length > 20,
                     controller: _scrollController,
-                    padding: const EdgeInsets.all(8),
-                    itemCount: widget.lines.length,
-                    itemBuilder: (context, index) {
-                      return _TerminalLineWidget(line: widget.lines[index]);
-                    },
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      itemCount: widget.lines.length,
+                      itemBuilder: (context, index) {
+                        return _TerminalLineWidget(line: widget.lines[index]);
+                      },
+                    ),
                   ),
+            ),
           ),
         ],
       ),
@@ -134,10 +127,11 @@ class _TerminalLineWidget extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: SelectableText(
         line.text,
+        maxLines: null,
         style: TextStyle(
           fontFamily: 'Consolas',
           fontSize: 12,
-          height: 1.35,
+          height: 1.4,
           color: color,
         ),
       ),

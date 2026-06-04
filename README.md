@@ -58,9 +58,9 @@ Binaries are under `build/` for each platform.
 | **Batch runner** | Grid of repos, run one command across all (original workflow) |
 | **Terminals** | Project list (names only) on the left; double-click to open an interactive terminal per project on the right |
 
-In **Terminals**, double-click a project to open a **full embedded terminal** ([Ghostty VT](https://pub.dev/packages/ghostty_vte_flutter)) in that folder — PowerShell on Windows, bash on macOS/Linux. Click the terminal pane and type as in a normal terminal (arrow keys, PSReadLine, Ctrl+C, paste, selection). Use tabs on the right to switch between open sessions.
+In **Terminals**, double-click a project to open a **full embedded terminal** ([Ghostty VT](https://pub.dev/packages/ghostty_vte_flutter)) in that folder — PowerShell over **ConPTY** on Windows, bash over a POSIX PTY on macOS/Linux. Click the terminal pane and type as in a normal terminal (arrow keys, PSReadLine, **Ctrl+C** to stop `npm start` / dev servers, paste, selection). Use tabs on the right to switch between open sessions.
 
-On the first `flutter run` / `flutter build`, native PTY libraries are downloaded automatically by the package build hooks.
+On the first `flutter run` / `flutter build`, the ConPTY/PTY native library (`portable_pty`) is built or downloaded automatically via Dart native-asset hooks (Rust toolchain required unless prebuilts are used).
 
 ## Usage
 

@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/command_result.dart';
 import '../models/run_history_entry.dart';
 import '../services/run_history_store.dart';
+import '../theme/app_spacing.dart';
+import '../widgets/common/empty_state.dart';
+import '../widgets/common/status_badge.dart';
 
 enum _HistoryFilter { all, success, failed }
 
@@ -23,10 +26,8 @@ class _ReportScreenState extends State<ReportScreen> {
     final all = widget.historyStore.entries;
     return switch (_filter) {
       _HistoryFilter.all => all,
-      _HistoryFilter.success =>
-        all.where((e) => e.allSucceeded).toList(),
-      _HistoryFilter.failed =>
-        all.where((e) => e.failCount > 0).toList(),
+      _HistoryFilter.success => all.where((e) => e.allSucceeded).toList(),
+      _HistoryFilter.failed => all.where((e) => e.failCount > 0).toList(),
     };
   }
 
@@ -36,7 +37,7 @@ class _ReportScreenState extends State<ReportScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Clear all history?'),
         content: const Text(
-          'This permanently removes all saved run reports.',
+          'This permanently removes all saved run reports from this device.',
         ),
         actions: [
           TextButton(
@@ -45,7 +46,7 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Clear'),
+            child: const Text('Clear history'),
           ),
         ],
       ),
@@ -60,57 +61,81 @@ class _ReportScreenState extends State<ReportScreen> {
   Widget build(BuildContext context) {
     final entries = _filteredEntries;
     final theme = Theme.of(context);
+    final total = widget.historyStore.entries.length;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Run history'),
         actions: [
-          if (widget.historyStore.entries.isNotEmpty)
+          if (total > 0)
             IconButton(
-              icon: const Icon(Icons.delete_sweep),
+              icon: const Icon(Icons.delete_sweep_outlined),
               tooltip: 'Clear history',
               onPressed: _confirmClear,
             ),
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              0,
+            ),
+            child: Text(
+              total == 0
+                  ? 'Completed batch runs appear here with per-repo output.'
+                  : '$total saved ${total == 1 ? 'run' : 'runs'}',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: SegmentedButton<_HistoryFilter>(
               segments: const [
                 ButtonSegment(
                   value: _HistoryFilter.all,
                   label: Text('All'),
+                  icon: Icon(Icons.list_alt, size: 18),
                 ),
                 ButtonSegment(
                   value: _HistoryFilter.success,
                   label: Text('Success'),
+                  icon: Icon(Icons.check_circle_outline, size: 18),
                 ),
                 ButtonSegment(
                   value: _HistoryFilter.failed,
                   label: Text('Failed'),
+                  icon: Icon(Icons.error_outline, size: 18),
                 ),
               ],
               selected: {_filter},
-              onSelectionChanged: (s) =>
-                  setState(() => _filter = s.first),
+              onSelectionChanged: (s) => setState(() => _filter = s.first),
             ),
           ),
-          const SizedBox(height: 8),
           Expanded(
             child: entries.isEmpty
-                ? Center(
-                    child: Text(
-                      widget.historyStore.entries.isEmpty
-                          ? 'No run history yet.\nComplete a task to see reports here.'
-                          : 'No runs match this filter.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyLarge,
-                    ),
+                ? AppEmptyState(
+                    icon: widget.historyStore.entries.isEmpty
+                        ? Icons.history_outlined
+                        : Icons.filter_list_off_outlined,
+                    title: widget.historyStore.entries.isEmpty
+                        ? 'No run history yet'
+                        : 'No matching runs',
+                    message: widget.historyStore.entries.isEmpty
+                        ? 'Run a batch command from the Batch runner tab to generate a report.'
+                        : 'Try a different filter to see other runs.',
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      0,
+                      AppSpacing.md,
+                      AppSpacing.md,
+                    ),
                     itemCount: entries.length,
                     itemBuilder: (context, index) {
                       final entry = entries[index];
@@ -145,44 +170,88 @@ class _HistoryRunCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final duration = entry.finishedAt.difference(entry.startedAt);
     final allOk = entry.allSucceeded;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Column(
         children: [
           ListTile(
-            leading: Icon(
-              allOk ? Icons.check_circle : Icons.warning_amber,
-              color: allOk ? Colors.green : Colors.orange,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xxs,
+            ),
+            leading: CircleAvatar(
+              radius: 18,
+              backgroundColor: allOk
+                  ? scheme.secondaryContainer
+                  : scheme.errorContainer.withValues(alpha: 0.5),
+              child: Icon(
+                allOk ? Icons.check_rounded : Icons.warning_amber_rounded,
+                size: 20,
+                color: allOk
+                    ? scheme.onSecondaryContainer
+                    : scheme.onErrorContainer,
+              ),
             ),
             title: Text(
               _formatDateTime(entry.startedAt),
               style: theme.textTheme.titleSmall,
             ),
-            subtitle: Text(
-              '${entry.successCount} ok · ${entry.failCount} failed · '
-              '${entry.runMode} · ${duration.inSeconds}s',
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xxs),
+              child: Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xxs,
+                children: [
+                  StatusBadge(
+                    label: '${entry.successCount} ok',
+                    tone: StatusBadgeTone.success,
+                  ),
+                  if (entry.failCount > 0)
+                    StatusBadge(
+                      label: '${entry.failCount} failed',
+                      tone: StatusBadgeTone.error,
+                    ),
+                  StatusBadge(
+                    label: entry.runMode,
+                    tone: StatusBadgeTone.neutral,
+                  ),
+                  StatusBadge(
+                    label: '${duration.inSeconds}s',
+                    tone: StatusBadgeTone.neutral,
+                  ),
+                ],
+              ),
             ),
-            trailing: Icon(expanded ? Icons.expand_less : Icons.expand_more),
+            trailing: Icon(
+              expanded ? Icons.expand_less : Icons.expand_more,
+              color: scheme.onSurfaceVariant,
+            ),
             onTap: onTap,
           ),
           if (expanded) ...[
-            const Divider(height: 1),
+            Divider(height: 1, color: scheme.outline.withValues(alpha: 0.35)),
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Command: ${entry.defaultCommand}',
-                    style: theme.textTheme.bodySmall,
+                    'Command',
+                    style: theme.textTheme.labelMedium,
                   ),
-                  const SizedBox(height: 12),
-                  ...entry.results.map(
-                    (r) => _ResultSummary(result: r),
+                  const SizedBox(height: AppSpacing.xxs),
+                  SelectableText(
+                    entry.defaultCommand,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontFamily: 'Consolas',
+                    ),
                   ),
+                  const SizedBox(height: AppSpacing.md),
+                  ...entry.results.map((r) => _ResultSummary(result: r)),
                 ],
               ),
             ),
@@ -209,84 +278,93 @@ class _ResultSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final ok = result.success;
-    final color = result.skipped
-        ? Colors.orange
+    final tone = result.skipped
+        ? StatusBadgeTone.warning
         : ok
-            ? Colors.green
-            : Colors.red;
+            ? StatusBadgeTone.success
+            : StatusBadgeTone.error;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Icon(
-                result.skipped
-                    ? Icons.skip_next
-                    : ok
-                        ? Icons.check
-                        : Icons.close,
-                size: 18,
-                color: color,
-              ),
-              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   result.repoName,
                   style: theme.textTheme.titleSmall,
                 ),
               ),
-              Text(
-                result.skipped
+              StatusBadge(
+                label: result.skipped
                     ? (result.skipReason ?? 'Skipped')
                     : 'exit ${result.exitCode}',
-                style: theme.textTheme.bodySmall,
+                tone: tone,
               ),
             ],
           ),
-          Text(
+          const SizedBox(height: AppSpacing.xxs),
+          SelectableText(
             result.command,
             style: theme.textTheme.bodySmall?.copyWith(
               fontFamily: 'Consolas',
             ),
           ),
           if (result.stderr.trim().isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.errorContainer.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: SelectableText(
-                result.stderr.trimRight(),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontFamily: 'Consolas',
-                ),
-              ),
+            const SizedBox(height: AppSpacing.xs),
+            _LogBlock(
+              text: result.stderr.trimRight(),
+              background: scheme.errorContainer.withValues(alpha: 0.35),
             ),
           ],
           if (result.stdout.trim().isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: SelectableText(
-                result.stdout.trimRight(),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontFamily: 'Consolas',
-                ),
-                maxLines: 8,
-              ),
+            const SizedBox(height: AppSpacing.xs),
+            _LogBlock(
+              text: result.stdout.trimRight(),
+              background: scheme.surfaceContainerHighest,
+              maxLines: 10,
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _LogBlock extends StatelessWidget {
+  const _LogBlock({
+    required this.text,
+    required this.background,
+    this.maxLines,
+  });
+
+  final String text;
+  final Color background;
+  final int? maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.25),
+        ),
+      ),
+      child: SelectableText(
+        text,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontFamily: 'Consolas',
+              height: 1.4,
+            ),
+        maxLines: maxLines,
       ),
     );
   }

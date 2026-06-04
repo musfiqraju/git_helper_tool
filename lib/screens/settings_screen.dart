@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../models/app_config.dart';
 import '../services/config_store.dart';
 import '../theme/settings_colors.dart';
+import '../widgets/common/app_snackbar.dart';
 import '../widgets/settings/layout_preview_tile.dart';
 import '../widgets/settings/settings_choice_tile.dart';
 import '../widgets/settings/settings_layout.dart';
@@ -69,11 +70,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-      ),
-    );
+    showAppSnackBar(context, message: message, isSuccess: true);
   }
 
   @override
@@ -354,14 +351,7 @@ class _ConfigPathBlock extends StatelessWidget {
             ),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: path));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Path copied',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              );
+              showAppSnackBar(context, message: 'Path copied', isSuccess: true);
             },
           ),
         ],

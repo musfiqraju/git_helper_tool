@@ -8,6 +8,10 @@ import '../services/git_command_runner.dart';
 import '../services/run_history_store.dart';
 import '../utils/grid_columns.dart';
 import '../utils/grid_tile_extent.dart';
+import '../theme/app_spacing.dart';
+import '../widgets/common/app_snackbar.dart';
+import '../widgets/common/empty_state.dart';
+import '../widgets/common/info_banner.dart';
 import '../widgets/live_terminal_panel.dart';
 import '../widgets/repo_grid_card.dart';
 import '../widgets/resizable_panel_layout.dart';
@@ -186,25 +190,15 @@ class BatchRunnerTabState extends State<BatchRunnerTab> {
   }
 
   void _showTaskCompleteNotification(String message, {required bool allOk}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 8),
-        backgroundColor: allOk ? Colors.green.shade800 : Colors.orange.shade900,
-        content: Row(
-          children: [
-            Icon(
-              allOk ? Icons.check_circle : Icons.warning_amber,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        action: SnackBarAction(
-          label: 'Report',
-          textColor: Colors.white,
-          onPressed: openReport,
-        ),
+    showAppSnackBar(
+      context,
+      message: message,
+      duration: const Duration(seconds: 8),
+      isSuccess: allOk,
+      isError: !allOk,
+      action: SnackBarAction(
+        label: 'Report',
+        onPressed: openReport,
       ),
     );
   }
@@ -229,49 +223,76 @@ class BatchRunnerTabState extends State<BatchRunnerTab> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Default: ${config.defaultCommand}',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      'Mode: ${config.runMode.label} · '
-                      '${config.runnableCount} of ${repos.length} ready',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              FilledButton.icon(
-                onPressed: canRun ? runAll : null,
-                icon: _running
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.xs,
+          ),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Batch command',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
                         ),
-                      )
-                    : const Icon(Icons.play_arrow),
-                label: Text(_running ? 'Running...' : 'Run all'),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          config.defaultCommand,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontFamily: 'Consolas'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          '${config.runMode.label} · '
+                          '${config.runnableCount} of ${repos.length} ready',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  FilledButton.icon(
+                    onPressed: canRun ? runAll : null,
+                    icon: _running
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.play_arrow_rounded),
+                    label: Text(_running ? 'Running…' : 'Run all'),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
         if (_completionMessage != null && !_running)
-          _CompletionBanner(
+          InfoBanner(
             message: _completionMessage!,
-            isSuccess: _completionIsSuccess,
-            onReport: openReport,
+            variant: _completionIsSuccess
+                ? InfoBannerVariant.success
+                : InfoBannerVariant.warning,
+            actionLabel: 'Report',
+            onAction: openReport,
             onDismiss: () => setState(() => _completionMessage = null),
           ),
         Expanded(
@@ -300,36 +321,16 @@ class BatchRunnerTabState extends State<BatchRunnerTab> {
   }
 
   Widget _buildEmptyReposPlaceholder(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
+    return const SingleChildScrollView(
+      physics: AlwaysScrollableScrollPhysics(),
       child: SizedBox(
-        height: 200,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.folder_open,
-                  size: 64,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No repositories enlisted',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Add folders from different locations. '
-                  'They stay saved until you remove or re-link them.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
+        height: 280,
+        child: AppEmptyState(
+          icon: Icons.folder_open_outlined,
+          title: 'No repositories enlisted',
+          message:
+              'Use Add folder to enlist git projects from any location. '
+              'They remain saved until you remove or re-link them.',
         ),
       ),
     );
@@ -364,7 +365,7 @@ class BatchRunnerTabState extends State<BatchRunnerTab> {
             controller: _gridScrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             primary: false,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: columns,
               crossAxisSpacing: 12,
@@ -389,51 +390,3 @@ class BatchRunnerTabState extends State<BatchRunnerTab> {
   }
 }
 
-class _CompletionBanner extends StatelessWidget {
-  const _CompletionBanner({
-    required this.message,
-    required this.isSuccess,
-    required this.onReport,
-    required this.onDismiss,
-  });
-
-  final String message;
-  final bool isSuccess;
-  final VoidCallback onReport;
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: isSuccess
-          ? Colors.green.withValues(alpha: 0.12)
-          : Colors.orange.withValues(alpha: 0.12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Icon(
-              isSuccess ? Icons.notifications_active : Icons.error_outline,
-              color: isSuccess ? Colors.green : Colors.orange,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ),
-            TextButton(onPressed: onReport, child: const Text('Report')),
-            IconButton(
-              icon: const Icon(Icons.close, size: 20),
-              onPressed: onDismiss,
-              tooltip: 'Dismiss',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

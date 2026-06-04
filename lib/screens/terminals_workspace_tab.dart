@@ -3,13 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/panel_layout.dart';
 import '../models/repo_entry.dart';
 import '../services/config_store.dart';
 import '../services/project_terminal_session.dart';
 import '../services/terminal_session_factory.dart';
+import '../theme/app_spacing.dart';
+import '../widgets/common/app_snackbar.dart';
+import '../widgets/common/empty_state.dart';
+import '../widgets/common/info_banner.dart';
+import '../widgets/common/panel_header.dart';
+import '../widgets/common/status_badge.dart';
 import '../widgets/project_terminal_view.dart';
 import '../widgets/resizable_panel_layout.dart';
-import '../models/panel_layout.dart';
 
 class TerminalsWorkspaceTab extends StatefulWidget {
   const TerminalsWorkspaceTab({
@@ -38,11 +44,19 @@ class _TerminalsWorkspaceTabState extends State<TerminalsWorkspaceTab> {
 
   void _openTerminalForRepo(RepoEntry repo) {
     if (repo.status == RepoStatus.missing) {
-      _showMessage('Folder not found. Re-link the project first.');
+      showAppSnackBar(
+        context,
+        message: 'Folder not found. Re-link the project first.',
+        isError: true,
+      );
       return;
     }
     if (repo.status == RepoStatus.notGitRepo) {
-      _showMessage('This path is not a git repository.');
+      showAppSnackBar(
+        context,
+        message: 'This path is not a git repository.',
+        isError: true,
+      );
       return;
     }
 
@@ -85,36 +99,36 @@ class _TerminalsWorkspaceTabState extends State<TerminalsWorkspaceTab> {
     });
   }
 
-  void _showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final repos = widget.store.config.repos;
-    final theme = Theme.of(context);
+    final openCount = _sessions.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-          child: Text(
-            TerminalSessionFactory.supportsRealShell
-                ? 'Double-click a project to open an interactive terminal in that folder.'
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            0,
+          ),
+          child: InfoBanner(
+            message: TerminalSessionFactory.supportsRealShell
+                ? 'Double-click a project to open an interactive shell in that folder.'
                 : 'Double-click a project to open a terminal session.',
-            style: theme.textTheme.bodySmall,
+            icon: Icons.touch_app_outlined,
+            variant: InfoBannerVariant.info,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.xs),
         Expanded(
           child: ResizablePanelLayout(
             layout: PanelLayout.sideBySide,
             initialTerminalRatio: 0.68,
-            minGridSize: 160,
-            minTerminalSize: 280,
+            minGridSize: 200,
+            minTerminalSize: 300,
             grid: _ProjectListPanel(
               repos: repos,
               openRepoIds: _sessions.map((s) => s.repoId).toSet(),
@@ -123,6 +137,7 @@ class _TerminalsWorkspaceTabState extends State<TerminalsWorkspaceTab> {
             terminal: _MultiTerminalPanel(
               sessions: _sessions,
               activeIndex: _activeSessionIndex,
+              openCount: openCount,
               onSelect: (i) => setState(() => _activeSessionIndex = i),
               onClose: _closeSession,
             ),
@@ -147,57 +162,71 @@ class _ProjectListPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
     if (repos.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            'No projects enlisted.\nUse Add folder to enlist repositories.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PanelHeader(
+            title: 'Projects',
+            subtitle: '${repos.length} enlisted',
+            icon: Icons.folder_outlined,
           ),
-        ),
+          const Expanded(
+            child: AppEmptyState(
+              icon: Icons.folder_off_outlined,
+              title: 'No projects yet',
+              message: 'Add folders with Add folder, then open terminals here.',
+              compact: true,
+            ),
+          ),
+        ],
       );
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Text(
-            'Projects',
-            style: theme.textTheme.titleSmall,
-          ),
+        PanelHeader(
+          title: 'Projects',
+          subtitle: '${repos.length} enlisted · ${openRepoIds.length} open',
+          icon: Icons.folder_outlined,
         ),
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             itemCount: repos.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 4),
+            separatorBuilder: (context, index) =>
+                const SizedBox(height: AppSpacing.xs),
             itemBuilder: (context, index) {
               final repo = repos[index];
               final isOpen = openRepoIds.contains(repo.id);
-              final status = repo.status;
 
               return Material(
                 color: isOpen
-                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.35)
-                    : theme.cardTheme.color,
-                borderRadius: BorderRadius.circular(10),
+                    ? scheme.primaryContainer.withValues(alpha: 0.4)
+                    : scheme.surfaceContainerLowest,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  side: BorderSide(
+                    color: isOpen
+                        ? scheme.primary.withValues(alpha: 0.35)
+                        : scheme.outline.withValues(alpha: 0.4),
+                  ),
+                ),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   onDoubleTap: () => onDoubleTap(repo),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.sm,
                     ),
                     child: Row(
                       children: [
-                        _StatusDot(status: status),
-                        const SizedBox(width: 12),
+                        StatusBadge.repo(repo.status),
+                        const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
                             repo.displayName,
@@ -210,9 +239,9 @@ class _ProjectListPanel extends StatelessWidget {
                         ),
                         if (isOpen)
                           Icon(
-                            Icons.terminal,
+                            Icons.terminal_rounded,
                             size: 18,
-                            color: theme.colorScheme.primary,
+                            color: scheme.primary,
                           ),
                       ],
                     ),
@@ -227,73 +256,49 @@ class _ProjectListPanel extends StatelessWidget {
   }
 }
 
-class _StatusDot extends StatelessWidget {
-  const _StatusDot({required this.status});
-
-  final RepoStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = switch (status) {
-      RepoStatus.ok => Colors.green,
-      RepoStatus.missing => Colors.orange,
-      RepoStatus.notGitRepo => Colors.red,
-    };
-    return Container(
-      width: 8,
-      height: 8,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-    );
-  }
-}
-
 class _MultiTerminalPanel extends StatelessWidget {
   const _MultiTerminalPanel({
     required this.sessions,
     required this.activeIndex,
+    required this.openCount,
     required this.onSelect,
     required this.onClose,
   });
 
   final List<ProjectTerminalSession> sessions;
   final int activeIndex;
+  final int openCount;
   final ValueChanged<int> onSelect;
   final ValueChanged<int> onClose;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
     if (sessions.isEmpty) {
-      return Container(
-        color: const Color(0xFF1A1A1A),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.terminal_outlined,
-                size: 56,
-                color: theme.colorScheme.outline,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No terminals open',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: Colors.white70,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Double-click a project on the left\nto open a terminal at that folder.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.white54,
-                ),
-              ),
-            ],
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PanelHeader(
+            invert: true,
+            title: 'Terminal',
+            subtitle: 'No session',
+            icon: Icons.terminal_rounded,
           ),
-        ),
+          Expanded(
+            child: ColoredBox(
+              color: const Color(0xFF141414),
+              child: AppEmptyState(
+                icon: Icons.terminal_outlined,
+                title: 'No terminals open',
+                message:
+                    'Double-click a project on the left to start a shell in that directory.',
+                compact: true,
+              ),
+            ),
+          ),
+        ],
       );
     }
 
@@ -303,72 +308,107 @@ class _MultiTerminalPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Material(
-          color: const Color(0xFF2D2D2D),
-          child: SizedBox(
-            height: 42,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-              itemCount: sessions.length,
-              itemBuilder: (context, index) {
-                final session = sessions[index];
-                final selected = index == safeIndex;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: InkWell(
-                    onTap: () => onSelect(index),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? const Color(0xFF1565C0)
-                            : const Color(0xFF3C3C3C),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.terminal,
-                            size: 14,
-                            color: selected ? Colors.white : Colors.white70,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            session.displayName,
-                            style: TextStyle(
-                              color: selected ? Colors.white : Colors.white70,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          GestureDetector(
-                            onTap: () => onClose(index),
-                            child: Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: Icon(
-                                Icons.close,
-                                size: 16,
-                                color:
-                                    selected ? Colors.white : Colors.white54,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+          color: const Color(0xFF252526),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              PanelHeader(
+                invert: true,
+                dense: true,
+                title: 'Sessions',
+                subtitle: '$openCount open',
+                icon: Icons.tab_rounded,
+              ),
+              SizedBox(
+                height: 36,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.sm,
+                    0,
+                    AppSpacing.sm,
+                    AppSpacing.sm,
                   ),
-                );
-              },
-            ),
+                  itemCount: sessions.length,
+                  itemBuilder: (context, index) {
+                    final session = sessions[index];
+                    final selected = index == safeIndex;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: AppSpacing.xs),
+                      child: Material(
+                        color: selected
+                            ? scheme.primary
+                            : const Color(0xFF3A3A3C),
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusSm),
+                        child: InkWell(
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusSm),
+                          onTap: () => onSelect(index),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.terminal_rounded,
+                                  size: 14,
+                                  color: selected
+                                      ? scheme.onPrimary
+                                      : Colors.white70,
+                                ),
+                                const SizedBox(width: 6),
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 160,
+                                  ),
+                                  child: Text(
+                                    session.displayName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: selected
+                                          ? scheme.onPrimary
+                                          : Colors.white70,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                InkWell(
+                                  onTap: () => onClose(index),
+                                  child: Icon(
+                                    Icons.close_rounded,
+                                    size: 16,
+                                    color: selected
+                                        ? scheme.onPrimary
+                                        : Colors.white54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(
-          child: ProjectTerminalView(
-            key: ValueKey(sessions[safeIndex].sessionId),
-            session: sessions[safeIndex],
+          child: ClipRect(
+            child: ProjectTerminalView(
+              key: ValueKey(sessions[safeIndex].sessionId),
+              session: sessions[safeIndex],
+              showHeader: false,
+            ),
           ),
         ),
       ],

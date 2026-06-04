@@ -46,8 +46,9 @@ class GhosttyShellSession extends ProjectTerminalSession {
   bool get usesEmbeddedTerminal => true;
 
   @override
-  String get shellLabel =>
-      Platform.isWindows ? 'PowerShell (terminal)' : 'bash (terminal)';
+  String get shellLabel => Platform.isWindows
+      ? 'PowerShell (ConPTY)'
+      : 'bash (terminal)';
 
   @override
   bool get isRealShell => true;
@@ -84,7 +85,11 @@ class GhosttyShellSession extends ProjectTerminalSession {
     try {
       final launch = _launchForDirectory(cwd);
       if (Platform.isWindows) {
-        _windowsPtyBridge = GhosttyWindowsPtyBridge(controller: controller);
+        _windowsPtyBridge = GhosttyWindowsPtyBridge(
+          controller: controller,
+          initialRows: controller.rows,
+          initialCols: controller.cols,
+        );
         await _windowsPtyBridge!.start(launch);
       } else {
         await controller.startLaunch(launch);

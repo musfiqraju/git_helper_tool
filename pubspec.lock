@@ -369,7 +369,7 @@ packages:
     source: hosted
     version: "2.1.8"
   portable_pty:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: portable_pty
       sha256: "0770e4f002a194ecb0e184fa46dab2ff3c585c3d843356eb56fdc0eb37d3bc75"
